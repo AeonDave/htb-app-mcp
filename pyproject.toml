@@ -1,0 +1,21 @@
+[project]
+name = "htb-app-mcp"
+version = "0.1.0"
+description = "Local MCP server for app.hackthebox.com / labs.hackthebox.com API v4"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.0",
+    "mcp[cli]>=1.21.0",
+    "python-dotenv>=1.1.0",
+]
+
+[project.scripts]
+htb-app-mcp = "htb_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["htb_mcp"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

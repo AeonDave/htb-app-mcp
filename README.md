@@ -1,50 +1,50 @@
 # HTB App MCP
 
-MCP locale per usare i servizi di **Hack The Box app** (`app.hackthebox.com`) tramite API v4 su:
+Local MCP server for **Hack The Box App** services via the HTB API v4 at:
 
 ```text
 https://labs.hackthebox.com/api/v4
 ```
 
-Questo progetto **non** usa `pyhackthebox`: il client parla direttamente con HTB via `httpx` e passa il token come:
+This project does **not** use `pyhackthebox`: the client talks directly to HTB via `httpx` and authenticates with:
 
 ```http
 Authorization: Bearer <HTB_APP_TOKEN>
 ```
 
-Non confonderlo con il MCP CTF ufficiale su `mcp.hackthebox.ai/v1/ctf/mcp/`: questo server è per Labs/App HTB, quindi Machines, Challenges, Sherlocks, Fortresses, Starting Point e Seasonal.
+Do not confuse this with the official HTB CTF MCP at `mcp.hackthebox.ai/v1/ctf/mcp/`. This server is for HTB App/Labs content: Machines, Challenges, Sherlocks, Fortresses, Starting Point, Seasonal, and Pro Labs.
 
-## Stato attuale
+## Current status
 
-- Transport consigliato: **HTTP locale Streamable MCP** su `http://127.0.0.1:8000/mcp`.
-- HTTP è **stateless di default**: se riavvii `htb-app-mcp`, il client non resta bloccato con `Session not found`.
-- Token consigliato: header MCP `Authorization: Bearer <HTB_APP_TOKEN>`, senza `.env`.
-- Fallback supportato: stdio + `.env`/variabili ambiente.
-- Tool esposti: **49**.
+- Recommended transport: **local Streamable HTTP MCP** on `http://127.0.0.1:8000/mcp`.
+- HTTP is **stateless by default**: restart the server without your MCP client getting stuck on `Session not found`.
+- Recommended auth: MCP header `Authorization: Bearer <HTB_APP_TOKEN>`, no `.env` needed.
+- Fallback: stdio + `.env` / environment variables.
+- Exposed tools: **56**.
 
 ## Setup
 
-Prerequisiti:
+Prerequisites:
 
 - Python 3.11+
 - `uv`
-- HTB App Token creato da `app.hackthebox.com`
+- HTB App Token from `app.hackthebox.com`
 
-Installa le dipendenze:
+Install dependencies:
 
 ```bash
 uv sync
 ```
 
-## Modalità consigliata: HTTP con header Authorization
+## Recommended mode: HTTP with Authorization header
 
-Avvia il server:
+Start the server:
 
 ```bash
 uv run htb-app-mcp --transport http --host 127.0.0.1 --port 8000
 ```
 
-Configura il client MCP così:
+Configure your MCP client:
 
 ```json
 {
@@ -60,33 +60,27 @@ Configura il client MCP così:
 }
 ```
 
-In questa modalità il token arriva dal client MCP e viene inoltrato solo verso HTB. Non serve `.env`.
+In this mode the token comes from the MCP client and is forwarded to HTB only. No `.env` required.
 
-### Restart del server
+### Restarting the server
 
-HTTP parte stateless di default. Questo evita il problema:
-
-```text
-Session not found
-```
-
-Quindi puoi riavviare:
+HTTP is stateless by default, avoiding the `Session not found` issue. You can restart:
 
 ```bash
 uv run htb-app-mcp --transport http --host 127.0.0.1 --port 8000
 ```
 
-e il client MCP può riconnettersi senza aprire una nuova chat. Se il client continua a usare una connessione vecchia, ricarica i server MCP lato client.
+and the MCP client can reconnect without starting a new chat. If the client still uses an old connection, reload the MCP servers on the client side.
 
-Per debug protocollo puoi forzare la modalità stateful:
+For protocol debugging you can force stateful mode:
 
 ```bash
 uv run htb-app-mcp --transport http --stateful-http
 ```
 
-## Modalità alternativa: stdio
+## Alternative mode: stdio
 
-Stdio è utile se un host MCP vuole lanciare direttamente il processo locale.
+Stdio is useful when an MCP host wants to launch the local process directly.
 
 Config:
 
@@ -104,23 +98,23 @@ Config:
 }
 ```
 
-Puoi anche usare `.env` come fallback locale:
+You can also use `.env` as a local fallback:
 
 ```bash
 cp .env.example .env
-# modifica .env e imposta HTB_API_TOKEN
+# edit .env and set HTB_API_TOKEN (or API_TOKEN)
 uv run htb-app-mcp
 ```
 
-`.env` è ignorato da git.
+`.env` is gitignored.
 
-## Tool principali
+## Tools
 
-| Area | Tool |
+| Area | Tools |
 |---|---|
 | Account | `htb_whoami`, `htb_user_profile` |
 | VPN | `htb_connection_status`, `htb_vpn_servers`, `htb_switch_vpn_server`, `htb_download_ovpn` |
-| Search | `htb_search`, `htb_api_get` |
+| Search | `htb_search`, `htb_api_get`, `htb_api_post` |
 | Machines | `htb_list_machines`, `htb_machine_info`, `htb_active_machine`, `htb_recommended_machines`, `htb_machine_tasks` |
 | Machine actions | `htb_spawn_machine`, `htb_stop_machine`, `htb_extend_machine`, `htb_reset_machine`, `htb_submit_machine_flag` |
 | Challenges | `htb_list_challenges`, `htb_challenge_info`, `htb_challenge_categories`, `htb_download_challenge` |
@@ -128,7 +122,8 @@ uv run htb-app-mcp
 | Sherlocks | `htb_list_sherlocks`, `htb_sherlock_info`, `htb_sherlock_tasks`, `htb_sherlock_progress`, `htb_sherlock_play`, `htb_download_sherlock`, `htb_submit_sherlock_task_flag` |
 | Fortresses | `htb_list_fortresses`, `htb_fortress_info`, `htb_fortress_flags`, `htb_submit_fortress_flag`, `htb_reset_fortress` |
 | Seasonal | `htb_list_seasons`, `htb_active_season_machine`, `htb_season_machines`, `htb_season_rewards`, `htb_season_user_rank`, `htb_season_user_ranks`, `htb_season_leaderboard`, `htb_season_top_leaderboard` |
-| Starting Point | `htb_starting_point_progress`, `htb_starting_point_tier` |
+| Starting Point | `htb_starting_point_progress`, `htb_starting_point_tier`, `htb_submit_machine_task` |
+| Pro Labs | `htb_list_prolabs`, `htb_prolab_overview`, `htb_prolab_machines`, `htb_prolab_flags`, `htb_submit_prolab_flag` |
 
 Resource:
 
@@ -142,9 +137,9 @@ Prompt:
 htb_target_workflow
 ```
 
-## Endpoint HTB coperti
+## HTB endpoints covered
 
-Il server usa endpoint reali verificati su `labs.hackthebox.com/api/v4`, tra cui:
+The server uses verified real endpoints on `labs.hackthebox.com/api/v4`, including:
 
 ```text
 GET  /user/info
@@ -205,51 +200,59 @@ GET  /season/{players|teams}/leaderboard/top/{seasonId}
 
 GET  /sp/tiers/progress
 GET  /sp/tier/{tierId}
+
+GET  /prolabs
+GET  /prolab/{prolabId}/overview
+GET  /prolab/{prolabId}/machines
+GET  /prolab/{prolabId}/flags
+POST /prolab/{prolabId}/flag
 ```
 
-Alcuni endpoint documentati online sono vecchi e oggi rispondono 404, per esempio `/machine/list`, `/machines`, `/starting-point/machines`.
+Some older endpoints documented online now return 404 (e.g. `/machine/list`, `/machines`, `/starting-point/machines`).
 
-## Download
+## Downloads
 
-Download supportati:
+Supported downloads:
 
 - OVPN: `htb_download_ovpn`
 - Challenge ZIP: `htb_download_challenge`
 - Sherlock ZIP: `htb_download_sherlock`
 
-Default:
+Defaults:
 
 - directory: `downloads`
-- password ZIP: `hackthebox`
-- estrazione ZIP: attiva per challenge/Sherlock
-- download ZIP serializzati con intervallo minimo per ridurre `429 Too Many Requests`
+- ZIP password: `hackthebox`
+- ZIP extraction: enabled for challenges and Sherlocks
+- ZIP downloads serialized with a minimum interval to reduce `429 Too Many Requests`
 
-Puoi cambiare la directory:
+Change the directory:
 
 ```bash
 export HTB_DOWNLOAD_DIR="D:/Sources/htb-app-mcp/downloads"
 ```
 
-## Variabili ambiente
+## Environment variables
 
-| Variabile | Default | Uso |
-|---|---:|---|
-| `HTB_API_TOKEN` | vuoto | Token HTB per stdio o fallback HTTP |
-| `API_TOKEN` | vuoto | Alias supportato per compatibilità |
-| `HTB_TOKEN` | vuoto | Alias supportato |
-| `HTB_API_BASE_URL` | `https://labs.hackthebox.com/api/v4` | Override base API |
-| `HTB_DOWNLOAD_DIR` | `downloads` | Directory download |
-| `HTB_TIMEOUT` | `30` | Timeout HTTP verso HTB |
-| `HTB_LOAD_DOTENV` | `1` | Imposta `0` per disabilitare `.env` |
+| Variable | Default | Usage |
+|---|---|---:|---|
+| `HTB_API_TOKEN` | empty | HTB token for stdio or HTTP fallback |
+| `API_TOKEN` | empty | Supported alias for compatibility |
+| `HTB_TOKEN` | empty | Supported alias |
+| `HTB_API_BASE_URL` | `https://labs.hackthebox.com/api/v4` | Override base API URL |
+| `HTB_DOWNLOAD_DIR` | `downloads` | Download directory |
+| `HTB_TIMEOUT` | `30` | HTTP timeout to HTB in seconds |
+| `HTB_LOAD_DOTENV` | `1` | Set to `0` to disable `.env` loading |
 | `HTB_MCP_TRANSPORT` | `stdio` | `stdio`, `http`, `streamable-http` |
-| `HTB_MCP_HOST` | `127.0.0.1` | Bind address HTTP |
-| `HTB_MCP_PORT` | `8000` | Porta HTTP |
-| `HTB_MCP_PATH` | `/mcp` | Path MCP HTTP |
-| `HTB_MCP_STATELESS_HTTP` | `1` in HTTP | HTTP stateless di default |
-| `HTB_MCP_JSON_RESPONSE` | `0` | Risposte JSON dove supportate |
-| `HTB_MCP_LOG_LEVEL` | `INFO` | Log server |
-| `HTB_MCP_VERBOSE_HTTP` | `0` | Se `1`, riabilita log HTTPX dettagliati |
-| `HTB_DOWNLOAD_MIN_INTERVAL` | `1.0` | Secondi minimi tra download ZIP |
+| `HTB_MCP_HOST` | `127.0.0.1` | HTTP bind address |
+| `HTB_MCP_PORT` | `8000` | HTTP port |
+| `HTB_MCP_PATH` | `/mcp` | MCP HTTP path |
+| `HTB_MCP_STATELESS_HTTP` | `1` in HTTP mode | HTTP stateless by default |
+| `HTB_MCP_JSON_RESPONSE` | `0` | Return JSON responses where supported |
+| `HTB_MCP_LOG_LEVEL` | `INFO` | Server log level |
+| `HTB_MCP_VERBOSE_HTTP` | `0` | Set to `1` to re-enable verbose HTTPX logging |
+| `HTB_DOWNLOAD_MIN_INTERVAL` | `1.0` | Minimum seconds between ZIP downloads |
+| `HTB_MCP_GRACEFUL_SHUTDOWN_TIMEOUT` | `5` | Graceful shutdown timeout in seconds |
+| `HTB_MCP_WINDOWS_SELECTOR_EVENT_LOOP` | `1` | Use selector event loop on Windows |
 
 ## CLI
 
@@ -257,7 +260,7 @@ export HTB_DOWNLOAD_DIR="D:/Sources/htb-app-mcp/downloads"
 uv run htb-app-mcp --help
 ```
 
-Opzioni principali:
+Main options:
 
 ```text
 --transport {stdio,http,streamable-http}
@@ -271,21 +274,21 @@ Opzioni principali:
 --graceful-shutdown-timeout 5
 ```
 
-## Validazione locale
+## Local validation
 
-Smoke test client diretto:
+Smoke test with direct client:
 
 ```bash
 uv run python tests/smoke_client.py
 ```
 
-Smoke test MCP stdio:
+Smoke test with MCP stdio:
 
 ```bash
 uv run python tests/smoke_mcp.py
 ```
 
-Smoke test MCP HTTP con header Authorization:
+Smoke test with MCP HTTP and Authorization header:
 
 ```bash
 uv run python tests/smoke_http.py
@@ -295,73 +298,73 @@ uv run python tests/smoke_http.py
 
 ### `Session not found`
 
-Aggiorna il codice e riavvia in HTTP default/stateless:
+Update the code and restart in default HTTP stateless mode:
 
 ```bash
 uv run htb-app-mcp --transport http --host 127.0.0.1 --port 8000
 ```
 
-Se il client ha ancora una connessione vecchia, usa reload MCP servers lato client.
+If the client still holds an old connection, use reload MCP servers on the client side.
 
-### `404 Not Found` su `/mcp`
+### `404 Not Found` on `/mcp`
 
-Controlla che:
+Check that:
 
-- il server sia avviato con `--transport http`
-- la config MCP punti a `http://127.0.0.1:8000/mcp`
-- `HTB_MCP_PATH` o `--path` non siano diversi da `/mcp`
+- the server is started with `--transport http`
+- the MCP config points to `http://127.0.0.1:8000/mcp`
+- `HTB_MCP_PATH` or `--path` is not set to something other than `/mcp`
 
-### `ConnectionResetError [WinError 10054]` su Windows
+### `ConnectionResetError [WinError 10054]` on Windows
 
-Il transport HTTP forza il selector event loop di Windows per evitare stack trace rumorosi quando un client MCP chiude una connessione HTTP/SSE già completata.
+The HTTP transport forces the selector event loop on Windows to avoid noisy stack traces when an MCP client closes a completed HTTP/SSE connection.
 
-### Traceback o `ASGI callable returned without completing response` su Ctrl+C
+### Traceback or `ASGI callable returned without completing response` on Ctrl+C
 
-La gestione shutdown è cross-platform: su Linux/macOS usa il signal handling standard di Uvicorn, mentre su Windows abilita solo il selector event loop per evitare rumore specifico del Proactor. In tutti i casi il server filtra il rumore benigno generato da Uvicorn/Starlette quando chiudi con Ctrl+C mentre ci sono stream MCP HTTP aperti. Se hai bisogno dei log completi per debug, imposta `HTB_MCP_VERBOSE_HTTP=1`.
+Shutdown handling is cross-platform: on Linux/macOS it uses standard Uvicorn signal handling; on Windows it enables the selector event loop only to avoid Proactor-specific noise. In all cases the server filters benign noise from Uvicorn/Starlette when closing HTTP MCP streams with Ctrl+C. For full debug logs, set `HTB_MCP_VERBOSE_HTTP=1`.
 
 ### `422 Unprocessable Entity`
 
-HTB rifiuta parametri non validi. Il server normalizza i casi più comuni:
+HTB rejects invalid parameters. The server normalizes common cases:
 
 - `Easy` -> `easy`
 - `Very Easy` -> `very-easy`
 - `unsolved` -> `incompleted`
 - `solved` -> `complete`
-- `sort_by=difficulty` -> `user_difficulty` per challenges
-- `target_type=challenge` -> `challenges` per search
+- `sort_by=difficulty` -> `user_difficulty` for challenges
+- `target_type=challenge` -> `challenges` for search
 
-Se HTB cambia schema, usa `htb_api_get` per testare un endpoint read-only.
+If HTB changes the schema, use `htb_api_get` to test a read-only endpoint.
 
-### `403 Forbidden` durante download
+### `403 Forbidden` during download
 
-Non è necessariamente un bug: HTB può negare l'accesso a challenge/file non disponibili per il tuo account, piano, stato o permessi.
+This is not necessarily a bug: HTB may deny access to challenges or files not available for your account plan, tier, status, or permissions.
 
 ### `429 Too Many Requests`
 
-Hai colpito rate limit HTB. Il server serializza i download ZIP, ma se un agente chiede molti download ravvicinati conviene aspettare qualche minuto o aumentare:
+You hit the HTB rate limit. The server serializes ZIP downloads, but if an agent requests many consecutive downloads, wait a few minutes or increase:
 
 ```bash
 export HTB_DOWNLOAD_MIN_INTERVAL=2.0
 ```
 
-### Log con URL firmati
+### Logs with signed URLs
 
-I log HTTPX/httpcore sono silenziati di default per evitare di stampare URL temporanei S3. Per debug:
+HTTPX and httpcore logs are silenced by default to avoid printing temporary S3 URLs. For debugging:
 
 ```bash
 export HTB_MCP_VERBOSE_HTTP=1
 ```
 
-Non condividere log verbose: possono contenere URL presigned temporanei.
+Do not share verbose logs: they may contain temporary presigned URLs.
 
-## Sicurezza
+## Security
 
-- Tieni il server HTTP su loopback (`127.0.0.1`).
-- Non committare `.env` o token.
-- Non incollare token nei log o nel README.
-- Evita `HTB_MCP_VERBOSE_HTTP=1` salvo debug locale.
-- Le azioni `spawn`, `stop`, `reset`, `submit flag`, `switch VPN` hanno side effect sul tuo account HTB.
+- Keep the HTTP server on loopback (`127.0.0.1`).
+- Do not commit `.env` or tokens.
+- Do not paste tokens in logs or the README.
+- Avoid `HTB_MCP_VERBOSE_HTTP=1` outside local debugging.
+- Tools like `spawn`, `stop`, `reset`, `submit flag`, `switch VPN` have side effects on your HTB account.
 
-## Note API
+## API notes
 
-Le API HTB App v4 non sono ufficialmente stabili per integrazioni esterne. Molti riferimenti pubblici sono community-maintained o reverse-engineered; HTB può cambiare path, payload o permessi senza preavviso.
+HTB App v4 APIs are not officially stable for external integrations. Most public references are community-maintained or reverse-engineered; HTB may change paths, payloads, or permissions without notice.

@@ -1,6 +1,6 @@
 # HTB App MCP
 
-Local MCP server for **Hack The Box App** services via the HTB API v4 at:
+Local MCP server for **Hack The Box App** services via the HTB API (primarily v4, with machine flag submission on v5) at:
 
 ```text
 https://labs.hackthebox.com/api/v4
@@ -139,7 +139,8 @@ htb_target_workflow
 
 ## HTB endpoints covered
 
-The server uses verified real endpoints on `labs.hackthebox.com/api/v4`, including:
+The server uses verified real endpoints on `labs.hackthebox.com/api/v4` (with
+machine flag submission on `api/v5`), including:
 
 ```text
 GET  /user/info
@@ -163,14 +164,12 @@ POST /vm/extend
 POST /vm/reset
 POST /vm/reset/vote
 POST /vm/reset/vote/accept
-POST /machine/own
+POST /api/v5/machine/own
 
 GET  /challenges
 GET  /challenge/info/{challengeSlug}
 GET  /challenge/categories/list
 GET  /challenges/{challengeId}/download_link
-POST /challenge/start
-POST /challenge/stop
 POST /container/start
 POST /container/stop
 POST /challenge/own
@@ -199,7 +198,6 @@ GET  /season/{players|teams}/leaderboard
 GET  /season/{players|teams}/leaderboard/top/{seasonId}
 
 GET  /sp/tiers/progress
-GET  /sp/tier/{tierId}
 
 GET  /prolabs
 GET  /prolab/{prolabId}/overview

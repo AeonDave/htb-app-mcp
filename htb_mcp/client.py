@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 from urllib.parse import urlparse
@@ -55,26 +56,62 @@ def parse_params_json(params_json: str) -> JsonMap:
     return value
 
 
-def normalize_api_path(path: str) -> str:
+# Matches an "/api/vN" version segment at the start of a path or anywhere in a
+# base URL (e.g. "/api/v4", "/api/v5").
+_API_VERSION_RE = re.compile(r"/api/(v\d+)")
+
+
+def resolve_api_path(path: str) -> tuple[str | None, str]:
+    """Split an HTB API path into ``(api_version, path)``.
+
+    ``api_version`` is the explicit version a caller pinned -- via a full
+    ``labs.hackthebox.com`` URL or an ``/api/vN/...`` prefix (e.g. ``"v5"``) --
+    or ``None`` to use the client's configured default version. The returned
+    path always starts with ``/`` and is the version-stripped, traversal-checked
+    remainder so it can be joined to whichever versioned base is selected.
+    """
     raw = path.strip()
     if not raw:
         raise HTBError("API path cannot be empty.")
 
     if raw.startswith("http://") or raw.startswith("https://"):
         parsed = urlparse(raw)
-        if parsed.netloc != "labs.hackthebox.com" or not parsed.path.startswith("/api/v4/"):
-            raise HTBError("Only labs.hackthebox.com/api/v4 URLs are accepted.")
-        raw = parsed.path.removeprefix("/api/v4")
+        if parsed.netloc != "labs.hackthebox.com":
+            raise HTBError("Only labs.hackthebox.com URLs are accepted.")
         if parsed.query:
             raise HTBError("Put query parameters in params_json, not in the path.")
-    elif raw.startswith("/api/v4/"):
-        raw = raw.removeprefix("/api/v4")
+        raw = parsed.path
+
+    version: str | None = None
+    version_match = re.match(r"^/api/(v\d+)(/.*)?$", raw)
+    if version_match:
+        version = version_match.group(1)
+        raw = version_match.group(2) or "/"
 
     if not raw.startswith("/"):
         raw = f"/{raw}"
     if any(segment == ".." for segment in raw.split("/")):
         raise HTBError("Path traversal segments are not allowed.")
-    return raw
+    return version, raw
+
+
+def normalize_api_path(path: str) -> str:
+    """Return the version-stripped path part of an HTB API path."""
+    return resolve_api_path(path)[1]
+
+
+def detect_base_version(base_url: str) -> str | None:
+    """Return the ``vN`` version embedded in a base URL, if any."""
+    match = _API_VERSION_RE.search(base_url)
+    return match.group(1) if match else None
+
+
+def base_url_for_version(base_url: str, version: str) -> str:
+    """Return ``base_url`` rewritten to target the given ``/api/vN`` version."""
+    rewritten, count = _API_VERSION_RE.subn(f"/api/{version}", base_url, count=1)
+    if count:
+        return rewritten
+    return f"{base_url.rstrip('/')}/api/{version}"
 
 
 def find_download_url(payload: Any) -> str:
@@ -214,8 +251,14 @@ def normalize_optional_choice(
 
 
 class HTBClient:
-    def __init__(self, config: HTBConfig) -> None:
+    def __init__(
+        self,
+        config: HTBConfig,
+        *,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self._config = config
+        self._configured_version = detect_base_version(config.api_base_url)
         self._client = httpx.AsyncClient(
             base_url=config.api_base_url,
             headers={
@@ -225,7 +268,22 @@ class HTBClient:
             },
             timeout=config.timeout,
             follow_redirects=True,
+            transport=transport,
         )
+
+    def _build_target(self, path: str, api_version: str | None) -> str:
+        """Resolve a request path to the URL/relative-path httpx should call.
+
+        Returns a relative path (merged with the client's base URL) for the
+        configured default version, or an absolute URL when the request pins a
+        different ``/api/vN`` version (e.g. machine flag submission on v5).
+        """
+        pinned_version, normalized = resolve_api_path(path)
+        target_version = api_version or pinned_version
+        if target_version and target_version != self._configured_version:
+            base = base_url_for_version(self._config.api_base_url, target_version)
+            return f"{base}{normalized}"
+        return normalized
 
     async def __aenter__(self) -> "HTBClient":
         return self
@@ -243,11 +301,12 @@ class HTBClient:
         *,
         params: QueryParams = None,
         json_body: Any | None = None,
+        api_version: str | None = None,
     ) -> Any:
         try:
             response = await self._client.request(
                 method,
-                normalize_api_path(path),
+                self._build_target(path, api_version),
                 params=self._normalize_params(params),
                 json=json_body,
             )
@@ -257,7 +316,7 @@ class HTBClient:
 
     async def bytes_request(self, path: str) -> tuple[bytes, str | None]:
         try:
-            response = await self._client.get(normalize_api_path(path))
+            response = await self._client.get(self._build_target(path, None))
         except httpx.HTTPError as exc:
             raise HTBError(f"Network error while downloading from HTB: {exc}") from exc
         if response.status_code >= 400:
@@ -407,9 +466,12 @@ class HTBClient:
         flag: str,
         difficulty: int | None,
     ) -> Any:
+        # HTB removed v4 /machine/own (returns 400 with code 2bc72d66) and moved
+        # flag submission to /api/v5/machine/own. Payload shape is unchanged.
+        # (Verified live 2026-06.)
         payload: JsonMap = {"id": machine_id, "flag": flag}
         add_if_present(payload, "difficulty", difficulty)
-        return await self.request("POST", "/machine/own", json_body=payload)
+        return await self.request("POST", "/machine/own", json_body=payload, api_version="v5")
 
     async def list_challenges(
         self,
@@ -575,7 +637,28 @@ class HTBClient:
         return await self.request("GET", "/sp/tiers/progress")
 
     async def starting_point_tier(self, tier_id: int) -> Any:
-        return await self.request("GET", f"/sp/tier/{tier_id}")
+        # HTB removed GET /sp/tier/{id} (400 with code 4c82c281) and, unlike
+        # machine/own, ships no replacement route -- /sp/tiers/progress is the
+        # only surviving Starting Point endpoint and lists tiers without their
+        # machines. Return the matching tier's metadata from progress and point
+        # callers at search/list tools for per-machine details. (Verified live 2026-06.)
+        progress = await self.request("GET", "/sp/tiers/progress")
+        tiers = progress.get("data", []) if isinstance(progress, dict) else []
+        match = next(
+            (tier for tier in tiers if isinstance(tier, dict) and tier.get("id") == tier_id),
+            None,
+        )
+        if match is None:
+            available = [tier.get("id") for tier in tiers if isinstance(tier, dict)]
+            raise HTBError(f"Starting Point tier {tier_id} not found. Available tier ids: {available}.")
+        return {
+            "tier": match,
+            "note": (
+                "HTB removed the per-tier machine listing endpoint (GET /sp/tier/{id}). "
+                "Only tier metadata is available now; use htb_search or htb_list_machines + "
+                "htb_machine_info for Starting Point machine details."
+            ),
+        }
 
     async def submit_machine_task_flag(self, machine_id: int, task_id: int, flag: str) -> Any:
         return await self.request(

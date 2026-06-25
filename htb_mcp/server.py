@@ -83,11 +83,11 @@ SERVICE_MAP: dict[str, Any] = {
             "GET /machine/active",
             "POST /vm/spawn",
             "POST /vm/terminate",
-            "POST /machine/own",
+            "POST /api/v5/machine/own",
         ],
         "starting_point": [
             "GET /sp/tiers/progress",
-            "GET /sp/tier/{tierId}",
+            "GET /machines/{machineId}/tasks",
             "POST /machines/{machineId}/tasks/{taskId}/flag",
         ],
         "prolabs": [
@@ -685,7 +685,12 @@ async def htb_starting_point_progress() -> Any:
 
 @mcp.tool()
 async def htb_starting_point_tier(tier_id: int) -> Any:
-    """Return machines and progress for a Starting Point tier id."""
+    """Return metadata for a Starting Point tier id.
+
+    HTB removed the per-tier machine listing endpoint, so only tier metadata
+    (name, description, completion) is returned. Use htb_search or
+    htb_list_machines + htb_machine_info for Starting Point machine details.
+    """
     async with htb_client() as client:
         return await _call(client.starting_point_tier(tier_id))
 
@@ -738,16 +743,21 @@ async def htb_submit_prolab_flag(prolab_id: int, flag: str) -> Any:
 
 @mcp.tool()
 async def htb_api_get(path: str, params_json: str = "{}") -> Any:
-    """Call a read-only HTB API v4 path for endpoint discovery. Example path: /machine/recommended."""
+    """Call a read-only HTB API path for endpoint discovery. Example path: /machine/recommended.
+
+    Defaults to API v4. Prefix the path with /api/vN (e.g. /api/v5/...) to target
+    another version.
+    """
     async with htb_client() as client:
         return await _call(client.raw_get(path, params_json))
 
 
 @mcp.tool()
 async def htb_api_post(path: str, body_json: str = "{}") -> Any:
-    """Call a write HTB API v4 path for endpoint discovery or ad-hoc mutations.
+    """Call a write HTB API path for endpoint discovery or ad-hoc mutations.
 
-    Example: path=/machine/own body_json={"id":395,"flag":"abc"}
+    Defaults to API v4. Prefix the path with /api/vN to target another version.
+    Example: path=/api/v5/machine/own body_json={"id":395,"flag":"abc"}
     """
     async with htb_client() as client:
         return await _call(client.raw_post(path, body_json))

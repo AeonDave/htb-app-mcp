@@ -447,16 +447,20 @@ class HTBClient:
         return await self.request("GET", f"/challenges/{challenge_id}/download_link")
 
     async def start_challenge(self, challenge_id: int) -> Any:
-        return await self.request("POST", "/challenge/start", json_body={"challenge_id": challenge_id})
+        # HTB current API: challenge container spawn is POST /container/start {challenge_id}.
+        # (The legacy /challenge/start route returns 404 — verified live 2026-06.)
+        return await self.request("POST", "/container/start", json_body={"challenge_id": challenge_id})
 
     async def stop_challenge(self, challenge_id: int) -> Any:
-        return await self.request("POST", "/challenge/stop", json_body={"challenge_id": challenge_id})
+        # HTB current API: POST /container/stop {challenge_id} (legacy /challenge/stop is 404).
+        return await self.request("POST", "/container/stop", json_body={"challenge_id": challenge_id})
 
     async def start_container(self, container_id: int) -> Any:
-        return await self.request("POST", "/container/start", json_body={"container_id": container_id})
+        # The /container/start endpoint keys on challenge_id (not a separate container id).
+        return await self.request("POST", "/container/start", json_body={"challenge_id": container_id})
 
     async def stop_container(self, container_id: int) -> Any:
-        return await self.request("POST", "/container/stop", json_body={"container_id": container_id})
+        return await self.request("POST", "/container/stop", json_body={"challenge_id": container_id})
 
     async def submit_challenge_flag(self, challenge_id: int, flag: str) -> Any:
         return await self.request(

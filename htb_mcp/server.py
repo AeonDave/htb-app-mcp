@@ -102,8 +102,8 @@ SERVICE_MAP: dict[str, Any] = {
             "GET /challenge/info/{challengeSlug}",
             "GET /challenges/{challengeId}/download_link",
             "POST /challenge/own",
-            "POST /challenge/start",
-            "POST /challenge/stop",
+            "POST /container/start",
+            "POST /container/stop",
         ],
         "sherlocks": [
             "GET /sherlocks",
